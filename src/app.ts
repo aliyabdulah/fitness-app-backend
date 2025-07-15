@@ -5,6 +5,7 @@ import multer from "multer";
 import authRoutes from "./routes/authRoutes";
 import userRoutes from "./routes/userRoutes";
 import trainerRoutes from "./routes/trainerRoutes";
+import workoutRoutes from "./routes/workoutRoutes";
 
 const app = express();
 
@@ -21,6 +22,8 @@ app.use(morgan("combined"));
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/trainers", trainerRoutes);
+app.use("/api/workouts", workoutRoutes);
+
 
 // Health check endpoint
 app.get("/health", (req, res) => {
