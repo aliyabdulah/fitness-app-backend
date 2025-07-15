@@ -19,43 +19,133 @@ export const register = async (req: MulterRequest, res: Response) => {
       password,
       firstName,
       lastName,
+      role,
       age,
       weight,
       height,
       fitnessLevel,
       fitnessGoal,
-      workoutFrequency
+      workoutFrequency,
     } = req.body;
 
     // Validate required fields
-    if (!email || !password || !firstName || !lastName) {
-      return res.status(400).json({ message: "Missing required fields: email, password, firstName, lastName" });
+    if (!email || !password || !firstName || !lastName || !role) {
+      return res.status(400).json({
+        message:
+          "Missing required fields: email, password, firstName, lastName, role",
+      });
+    }
+
+    // Validate role
+    if (!["trainee", "pt"].includes(role)) {
+      return res.status(400).json({
+        message: "Role must be either 'trainee' or 'pt'",
+      });
+    }
+
+    // Role-based validation
+    if (role === "trainee") {
+      // Trainees must provide ALL fitness information
+      if (
+        !age ||
+        !weight ||
+        !height ||
+        !fitnessLevel ||
+        !fitnessGoal ||
+        workoutFrequency === undefined
+      ) {
+        return res.status(400).json({
+          message:
+            "Trainees must provide age, weight, height, fitnessLevel, fitnessGoal, and workoutFrequency",
+        });
+      }
+
+      // Validate fitness field values for trainees
+      if (isNaN(parseInt(age)) || parseInt(age) < 1 || parseInt(age) > 120) {
+        return res
+          .status(400)
+          .json({ message: "Age must be a valid number between 1-120" });
+      }
+      if (isNaN(parseInt(weight)) || parseInt(weight) < 1) {
+        return res
+          .status(400)
+          .json({ message: "Weight must be a valid positive number" });
+      }
+      if (isNaN(parseInt(height)) || parseInt(height) < 1) {
+        return res
+          .status(400)
+          .json({ message: "Height must be a valid positive number" });
+      }
+      if (!["beginner", "intermediate", "advanced"].includes(fitnessLevel)) {
+        return res.status(400).json({
+          message:
+            "Fitness level must be 'beginner', 'intermediate', or 'advanced'",
+        });
+      }
+      if (
+        ![
+          "lose_weight",
+          "build_muscle",
+          "stay_fit",
+          "endurance",
+          "flexibility",
+        ].includes(fitnessGoal)
+      ) {
+        return res.status(400).json({ message: "Invalid fitness goal" });
+      }
+      if (isNaN(parseInt(workoutFrequency)) || parseInt(workoutFrequency) < 0) {
+        return res.status(400).json({
+          message: "Workout frequency must be a valid non-negative number",
+        });
+      }
     }
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists with this email" });
+      return res
+        .status(400)
+        .json({ message: "User already exists with this email" });
     }
 
     // Hash password
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Create new user
-    const newUser = await User.create({
+    // Prepare user data based on role
+    const userData: any = {
       email,
       password: hashedPassword,
       firstName,
       lastName,
-      age: parseInt(age) || 25,
-      weight: parseInt(weight) || 70,
-      height: parseInt(height) || 170,
-      fitnessLevel: fitnessLevel || "beginner",
-      fitnessGoal: fitnessGoal || "stay_fit",
-      workoutFrequency: parseInt(workoutFrequency) || 3,
-      profilePicture: req.file ? req.file.path : undefined
-    });
+      role,
+      profilePicture: req.file ? req.file.path : undefined,
+    };
+
+    // Add fitness fields only if role is trainee (required) or if PT provided them (optional)
+    if (role === "trainee") {
+      userData.age = parseInt(age);
+      userData.weight = parseInt(weight);
+      userData.height = parseInt(height);
+      userData.fitnessLevel = fitnessLevel;
+      userData.fitnessGoal = fitnessGoal;
+      userData.workoutFrequency = parseInt(workoutFrequency);
+    } else if (role === "pt") {
+      // For PTs, only add fitness fields if they were provided
+      if (age) userData.age = parseInt(age);
+      if (weight) userData.weight = parseInt(weight);
+      if (height) userData.height = parseInt(height);
+      if (fitnessLevel) userData.fitnessLevel = fitnessLevel;
+      if (fitnessGoal) userData.fitnessGoal = fitnessGoal;
+      if (workoutFrequency !== undefined)
+        userData.workoutFrequency = parseInt(workoutFrequency);
+
+      // Initialize trainees array for PTs
+      userData.trainees = [];
+    }
+
+    // Create new user
+    const newUser = await User.create(userData);
 
     // Generate JWT token
     const token = jwt.sign(
@@ -64,25 +154,42 @@ export const register = async (req: MulterRequest, res: Response) => {
       { expiresIn: "24h" }
     );
 
+    // Prepare response user object (exclude password)
+    const userResponse: any = {
+      id: newUser._id,
+      email: newUser.email,
+      firstName: newUser.firstName,
+      lastName: newUser.lastName,
+      name: newUser.name,
+      role: newUser.role,
+      profilePicture: newUser.profilePicture,
+    };
+
+    // Add fitness fields to response if they exist
+    if (newUser.age !== undefined) userResponse.age = newUser.age;
+    if (newUser.weight !== undefined) userResponse.weight = newUser.weight;
+    if (newUser.height !== undefined) userResponse.height = newUser.height;
+    if (newUser.fitnessLevel) userResponse.fitnessLevel = newUser.fitnessLevel;
+    if (newUser.fitnessGoal) userResponse.fitnessGoal = newUser.fitnessGoal;
+    if (newUser.workoutFrequency !== undefined)
+      userResponse.workoutFrequency = newUser.workoutFrequency;
+
+    // Add role-specific fields
+    if (newUser.role === "pt" && newUser.trainees) {
+      userResponse.trainees = newUser.trainees;
+    }
+    if (newUser.role === "trainee" && newUser.personalTrainer) {
+      userResponse.personalTrainer = newUser.personalTrainer;
+    }
+
     // Send response
     res.status(201).json({
-      message: "User registered successfully",
+      message: `${
+        role === "trainee" ? "Trainee" : "Personal Trainer"
+      } registered successfully`,
       token,
-      user: {
-        id: newUser._id,
-        email: newUser.email,
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
-        age: newUser.age,
-        weight: newUser.weight,
-        height: newUser.height,
-        fitnessLevel: newUser.fitnessLevel,
-        fitnessGoal: newUser.fitnessGoal,
-        workoutFrequency: newUser.workoutFrequency,
-        profilePicture: newUser.profilePicture
-      }
+      user: userResponse,
     });
-
   } catch (error) {
     console.error("Registration error:", error);
     res.status(500).json({ message: "Failed to register user", error });
@@ -96,7 +203,9 @@ export const login = async (req: Request, res: Response) => {
 
     // Validate input
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
     }
 
     // Find user by email
@@ -133,10 +242,9 @@ export const login = async (req: Request, res: Response) => {
         fitnessLevel: user.fitnessLevel,
         fitnessGoal: user.fitnessGoal,
         workoutFrequency: user.workoutFrequency,
-        profilePicture: user.profilePicture
-      }
+        profilePicture: user.profilePicture,
+      },
     });
-
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Failed to login", error });
@@ -188,4 +296,4 @@ export const resetPassword = async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
-}; 
+};

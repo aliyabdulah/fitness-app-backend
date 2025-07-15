@@ -4,11 +4,13 @@ import morgan from "morgan";
 import multer from "multer";
 import authRoutes from "./routes/authRoutes";
 import userRoutes from "./routes/userRoutes";
+import ptRoutes from "./routes/ptRoutes";
+import workoutRoutes from "./routes/workoutRoutes";
 
 const app = express();
 
 // Configure multer for handling multipart/form-data
-const upload = multer({ dest: 'uploads/' }); // Files will be stored in uploads/ directory
+const upload = multer({ dest: "uploads/" }); // Files will be stored in uploads/ directory
 
 // Middleware
 app.use(express.json());
@@ -19,10 +21,12 @@ app.use(morgan("combined"));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/pt", ptRoutes);
+app.use("/api/workouts", workoutRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).json({ message: "TrainX Backend API is running!" });
 });
 
-export default app; 
+export default app;
