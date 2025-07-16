@@ -102,6 +102,64 @@ const getPTWorkouts = async (req: Request, res: Response) => {
   }
 };
 
+// GET /api/pt/:ptId/workouts/:workoutId - Get specific workout template by ID
+const getWorkoutById = async (req: Request, res: Response) => {
+  try {
+    const { ptId, workoutId } = req.params;
+
+    // Validate PT exists
+    const pt = await User.findById(ptId);
+    if (!pt) {
+      return res.status(404).json({ message: "Personal Trainer not found" });
+    }
+    if (pt.role !== "pt") {
+      return res
+        .status(403)
+        .json({ message: "User is not a Personal Trainer" });
+    }
+
+    // Find workout and verify ownership
+    const workout = await Workout.findById(workoutId).populate(
+      "createdBy",
+      "firstName lastName email"
+    );
+
+    if (!workout) {
+      return res.status(404).json({ message: "Workout not found" });
+    }
+    ///////
+    /* ADD DEBUGGING HERE:
+    console.log("DEBUG - ptId:", ptId);
+    console.log("DEBUG - workout.createdBy:", workout.createdBy);
+    console.log("DEBUG - workout.createdBy._id:", workout.createdBy._id);
+    console.log(
+      "DEBUG - workout.createdBy._id.toString():",
+      workout.createdBy._id.toString()
+    );
+    console.log("DEBUG - Match:", workout.createdBy._id.toString() === ptId);
+
+    if (workout.createdBy._id.toString() !== ptId) {
+      return res
+        .status(403)
+        .json({ message: "You can only view your own workouts" });
+    }
+    */ //////
+
+    if (workout.createdBy._id.toString() !== ptId) {
+      return res
+        .status(403)
+        .json({ message: "You can only view your own workouts" });
+    }
+
+    res.status(200).json({
+      message: "Workout template retrieved successfully",
+      workout,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to retrieve workout", error });
+  }
+};
+
 // PUT /api/pt/:ptId/workouts/:workoutId - Update workout template
 const updateWorkout = async (req: Request, res: Response) => {
   try {
@@ -334,6 +392,7 @@ export {
   // Workout template management
   createWorkout,
   getPTWorkouts,
+  getWorkoutById,
   updateWorkout,
   deleteWorkout,
   // Workout assignment management
@@ -465,6 +524,24 @@ const updateWorkoutAssignment = async (req: Request, res: Response) => {
       },
       { path: "assignedBy", select: "firstName lastName email" },
     ]);
+    // ADD COMPLETION PERCENTAGE CALCULATION HERE:
+    const completedExercises = assignment.progress.filter(
+      (p) => p.completed
+    ).length;
+    const totalExercises = assignment.progress.length;
+    const completionPercentage = Math.round(
+      (completedExercises / totalExercises) * 100
+    );
+
+    res.status(200).json({
+      message: "Workout assignment updated successfully",
+      assignment,
+      completionStats: {
+        completed: completedExercises,
+        total: totalExercises,
+        percentage: completionPercentage,
+      },
+    });
 
     res.status(200).json({
       message: "Workout assignment updated successfully",

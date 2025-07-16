@@ -3,6 +3,7 @@ import {
   // Workout template management
   createWorkout,
   getPTWorkouts,
+  getWorkoutById,
   updateWorkout,
   deleteWorkout,
   // Workout assignment management
@@ -23,6 +24,9 @@ router.post("/pt/:ptId/workouts", createWorkout);
 
 // GET /api/pt/:ptId/workouts - Get all workout templates created by PT
 router.get("/pt/:ptId/workouts", getPTWorkouts);
+
+// GET /api/pt/:ptId/workouts/:workoutId - Get specific workout template by ID
+router.get("/pt/:ptId/workouts/:workoutId", getWorkoutById);
 
 // PUT /api/pt/:ptId/workouts/:workoutId - Update workout template
 router.put("/pt/:ptId/workouts/:workoutId", updateWorkout);

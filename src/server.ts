@@ -11,4 +11,4 @@ const connectDB = async () => {
   }
 };
 connectDB();
-app.listen(8000, () => console.log("Server running on 8000")); 
+app.listen(8000, () => console.log("Server running on 8000"));
