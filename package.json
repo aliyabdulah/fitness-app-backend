@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon src/server.ts"
+    "start": "nodemon src/server.ts",
+    "seed": "ts-node src/scripts/seedDatabase.ts",
+    "dev": "nodemon src/server.ts"
   },
   "repository": {
     "type": "git",

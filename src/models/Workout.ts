@@ -27,6 +27,7 @@ interface IWorkout extends Document {
   averageHeartRate?: number;
   notes?: string;
   trainerId?: mongoose.Types.ObjectId;
+  createdBy?: mongoose.Types.ObjectId; // For PT workout templates
 }
 
 // Schema for exercises within a workout
@@ -68,6 +69,7 @@ const WorkoutSchema: Schema = new Schema({
   averageHeartRate: { type: Number },
   notes: { type: String },
   trainerId: { type: Schema.Types.ObjectId, ref: "Trainer" },
+  createdBy: { type: Schema.Types.ObjectId, ref: "User" }, // For PT workout templates
 }, {
   timestamps: true
 });
