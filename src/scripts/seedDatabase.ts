@@ -15,8 +15,8 @@ async function seedDatabase() {
     await mongoose.connect(MONGODB_URI);
     console.log("Connected to MongoDB");
 
-    // Seed trainers
-    console.log("\n=== Seeding Trainers ===");
+    // Seed PT users (trainers)
+    console.log("\n=== Seeding PT Users ===");
     await seedTrainers();
 
     // Seed workouts for your specific user
@@ -24,6 +24,7 @@ async function seedDatabase() {
     const result = await seedUserWorkouts();
     console.log(`Created workouts for: ${result.user.name} (${result.user.email})`);
     result.workouts.forEach(workout => {
+      // The exercises property is actually the count (number), not the array
       console.log(`- ${workout.name}: ${workout.exercises} exercises on ${workout.scheduledDate.toDateString()}`);
     });
 

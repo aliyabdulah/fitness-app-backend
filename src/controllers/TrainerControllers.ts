@@ -1,12 +1,11 @@
 import { Request, Response } from "express";
-import Trainer from "../models/Trainer";
 import User from "../models/User";
-import { seedTrainers } from "../seeders/trainerSeeder";
 
 // GET /api/trainers - List all trainers
 export const getAllTrainers = async (req: Request, res: Response) => {
   try {
-    const trainers = await Trainer.find();
+    const trainers = await User.find({ role: "pt" }, { password: 0 })
+      .populate("trainees", { password: 0 });
     res.status(200).json({ trainers });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch trainers", error });
@@ -17,10 +16,17 @@ export const getAllTrainers = async (req: Request, res: Response) => {
 export const getTrainerById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const trainer = await Trainer.findById(id);
+    const trainer = await User.findById(id, { password: 0 })
+      .populate("trainees", { password: 0 });
+    
     if (!trainer) {
       return res.status(404).json({ message: "Trainer not found" });
     }
+    
+    if (trainer.role !== "pt") {
+      return res.status(404).json({ message: "User is not a trainer" });
+    }
+    
     res.status(200).json({ trainer });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch trainer", error });
@@ -30,21 +36,16 @@ export const getTrainerById = async (req: Request, res: Response) => {
 // POST /api/trainers/seed-all - Seed all Kuwaiti trainers
 export const seedAllTrainers = async (req: Request, res: Response) => {
   try {
-    const trainers = await seedTrainers();
-    
-    res.status(201).json({
-      message: "Trainers seeded successfully",
-      count: trainers.length,
-      trainers: trainers.map(trainer => ({
-        id: trainer._id,
-        name: trainer.name,
-        service: trainer.services[0]?.name
-      }))
+    // Since Trainer model is deleted, this function should be updated or removed
+    // For now, let's return a message that seeding is no longer needed
+    res.status(200).json({
+      message: "Trainer seeding is no longer needed. Trainers are now User documents with role: 'pt'",
+      note: "Use the migrated trainers or create new PT users via the PT creation endpoint"
     });
   } catch (error) {
-    console.error("Error seeding trainers:", error);
+    console.error("Error in seedAllTrainers:", error);
     res.status(500).json({ 
-      message: "Failed to seed trainers", 
+      message: "Trainer seeding is no longer supported", 
       error: error instanceof Error ? error.message : "Unknown error" 
     });
   }
@@ -478,5 +479,111 @@ export const removeTrainee = async (req: Request, res: Response) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Failed to remove trainee", error });
+  }
+};
+
+// POST /api/trainers/submit-request - Submit trainee request to PT
+export const submitTraineeRequest = async (req: Request, res: Response) => {
+  try {
+    const { traineeId, ptId, serviceName, message } = req.body;
+
+    // Debug logging
+    console.log('=== Training Request Debug ===');
+    console.log('Request body:', req.body);
+    console.log('traineeId:', traineeId);
+    console.log('ptId:', ptId);
+    console.log('serviceName:', serviceName);
+    console.log('message:', message);
+
+    // Validate required fields
+    if (!traineeId || !ptId || !serviceName) {
+      console.log('Validation failed - missing required fields');
+      console.log('traineeId exists:', !!traineeId);
+      console.log('ptId exists:', !!ptId);
+      console.log('serviceName exists:', !!serviceName);
+      return res.status(400).json({ 
+        message: "Trainee ID, PT ID, and service name are required",
+        received: { traineeId, ptId, serviceName }
+      });
+    }
+
+    // Check if trainee exists
+    const trainee = await User.findById(traineeId);
+    console.log('Trainee found:', !!trainee);
+    if (trainee) {
+      console.log('Trainee role:', trainee.role);
+      console.log('Trainee name:', trainee.name);
+    }
+    
+    if (!trainee) {
+      return res.status(404).json({ message: "Trainee not found" });
+    }
+
+    // Check if PT exists
+    const pt = await User.findById(ptId);
+    console.log('PT found:', !!pt);
+    if (pt) {
+      console.log('PT role:', pt.role);
+      console.log('PT name:', pt.name);
+    }
+    
+    if (!pt || pt.role !== "pt") {
+      return res.status(404).json({ message: "Personal Trainer not found" });
+    }
+
+    // Check if trainee is already supervised by this PT
+    const isAlreadySupervised = pt.trainees?.some(id => id.toString() === traineeId);
+    console.log('Already supervised:', isAlreadySupervised);
+    
+    if (isAlreadySupervised) {
+      // If already supervised, just return success (they can apply for different services)
+      console.log('Returning success for already supervised trainee');
+      res.status(200).json({
+        message: "Training request submitted successfully",
+        trainee: {
+          id: trainee._id,
+          name: trainee.name,
+          email: trainee.email,
+        },
+        pt: {
+          id: pt._id,
+          name: pt.name,
+          email: pt.email,
+        },
+        serviceName,
+        requestMessage: message,
+        note: "You are already supervised by this trainer"
+      });
+      return;
+    }
+
+    // Add trainee to PT's trainees list (if not already there)
+    console.log('Adding trainee to PT trainees list');
+    await User.findByIdAndUpdate(
+      ptId,
+      { $addToSet: { trainees: traineeId } },
+      { new: true }
+    );
+
+    console.log('Training request successful');
+    res.status(200).json({
+      message: "Training request submitted and accepted successfully",
+      trainee: {
+        id: trainee._id,
+        name: trainee.name,
+        email: trainee.email,
+      },
+      pt: {
+        id: pt._id,
+        name: pt.name,
+        email: pt.email,
+      },
+      serviceName,
+      requestMessage: message,
+    });
+  } catch (error) {
+    console.error('Error in submitTraineeRequest:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    res.status(500).json({ message: "Failed to submit training request", error: errorMessage });
   }
 };

@@ -54,7 +54,8 @@ export const register = async (req: MulterRequest, res: Response) => {
       fitnessLevel: fitnessLevel || "beginner",
       fitnessGoal: fitnessGoal || "stay_fit",
       workoutFrequency: parseInt(workoutFrequency) || 3,
-      profilePicture: req.file ? req.file.path : undefined
+      profilePicture: req.file ? req.file.path : undefined,
+      role: "trainee" // Add default role
     });
 
     // Generate JWT token
@@ -79,7 +80,8 @@ export const register = async (req: MulterRequest, res: Response) => {
         fitnessLevel: newUser.fitnessLevel,
         fitnessGoal: newUser.fitnessGoal,
         workoutFrequency: newUser.workoutFrequency,
-        profilePicture: newUser.profilePicture
+        profilePicture: newUser.profilePicture,
+        role: newUser.role // Add role to response
       }
     });
 
@@ -133,7 +135,8 @@ export const login = async (req: Request, res: Response) => {
         fitnessLevel: user.fitnessLevel,
         fitnessGoal: user.fitnessGoal,
         workoutFrequency: user.workoutFrequency,
-        profilePicture: user.profilePicture
+        profilePicture: user.profilePicture,
+        role: user.role // Add role to response
       }
     });
 

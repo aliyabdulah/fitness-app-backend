@@ -1,13 +1,19 @@
 import mongoose from "mongoose";
-import Trainer from "../models/Trainer";
+import User from "../models/User";
+import bcrypt from "bcryptjs";
 
-// Kuwaiti trainer data with professional images
+// Kuwaiti trainer data with professional images - Updated for User model
 const kuwaitiTrainers = [
   {
-    name: "Ahmed Al-Rashid",
-    image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop&crop=face",
+    firstName: "Ahmed",
+    lastName: "Al-Rashid",
+    email: "ahmed.alrashid@trainer.com",
+    password: "trainer123", // Will be hashed
+    profilePicture: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop&crop=face",
     bio: "Certified personal trainer with 8+ years of experience in bodybuilding and strength training. Specializes in muscle building, weight loss, and athletic performance. Fluent in Arabic and English.",
     instagram: "https://instagram.com/ahmedalrashid_fitness",
+    role: "pt",
+    trainees: [],
     services: [
       {
         name: "One on One Training",
@@ -34,10 +40,15 @@ const kuwaitiTrainers = [
     },
   },
   {
-    name: "Fatima Al-Zahra",
-    image: "https://images.unsplash.com/photo-1594736797933-d0401ba2fe65?w=400&h=400&fit=crop&crop=face",
+    firstName: "Fatima",
+    lastName: "Al-Zahra",
+    email: "fatima.alzahra@trainer.com",
+    password: "trainer123",
+    profilePicture: "https://images.unsplash.com/photo-1594736797933-d0401ba2fe65?w=400&h=400&fit=crop&crop=face",
     bio: "Women's fitness specialist with expertise in prenatal and postnatal training. Certified in yoga, pilates, and functional training. Dedicated to empowering women through fitness.",
     instagram: "https://instagram.com/fatima_fitness_kw",
+    role: "pt",
+    trainees: [],
     services: [
       {
         name: "Women's Fitness",
@@ -64,10 +75,15 @@ const kuwaitiTrainers = [
     },
   },
   {
-    name: "Omar Al-Mansouri",
-    image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=400&fit=crop&crop=face",
+    firstName: "Omar",
+    lastName: "Al-Mansouri",
+    email: "omar.almansouri@trainer.com",
+    password: "trainer123",
+    profilePicture: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=400&fit=crop&crop=face",
     bio: "Former professional athlete turned fitness coach. Specializes in sports performance, functional training, and rehabilitation. Works with athletes and fitness enthusiasts of all levels.",
     instagram: "https://instagram.com/omar_performance",
+    role: "pt",
+    trainees: [],
     services: [
       {
         name: "Sports Performance",
@@ -94,10 +110,15 @@ const kuwaitiTrainers = [
     },
   },
   {
-    name: "Noor Al-Sabah",
-    image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop&crop=face",
+    firstName: "Noor",
+    lastName: "Al-Sabah",
+    email: "noor.alsabah@trainer.com",
+    password: "trainer123",
+    profilePicture: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop&crop=face",
     bio: "HIIT and cardio specialist with a passion for high-energy workouts. Certified in CrossFit, boxing, and circuit training. Creates dynamic, engaging sessions that push limits.",
     instagram: "https://instagram.com/noor_hiit_kw",
+    role: "pt",
+    trainees: [],
     services: [
       {
         name: "HIIT Training",
@@ -124,10 +145,15 @@ const kuwaitiTrainers = [
     },
   },
   {
-    name: "Yousef Al-Hamdan",
-    image: "https://images.unsplash.com/photo-1594736797933-d0401ba2fe65?w=400&h=400&fit=crop&crop=face",
+    firstName: "Yousef",
+    lastName: "Al-Hamdan",
+    email: "yousef.alhamdan@trainer.com",
+    password: "trainer123",
+    profilePicture: "https://images.unsplash.com/photo-1594736797933-d0401ba2fe65?w=400&h=400&fit=crop&crop=face",
     bio: "Nutrition and wellness coach specializing in weight management and lifestyle transformation. Combines fitness training with personalized nutrition plans for optimal results.",
     instagram: "https://instagram.com/yousef_wellness",
+    role: "pt",
+    trainees: [],
     services: [
       {
         name: "Weight Management",
@@ -154,10 +180,15 @@ const kuwaitiTrainers = [
     },
   },
   {
-    name: "Aisha Al-Qassimi",
-    image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=400&fit=crop&crop=face",
+    firstName: "Aisha",
+    lastName: "Al-Qassimi",
+    email: "aisha.alqassimi@trainer.com",
+    password: "trainer123",
+    profilePicture: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=400&fit=crop&crop=face",
     bio: "Senior fitness trainer with expertise in senior fitness, flexibility, and mobility training. Focuses on maintaining independence and quality of life through safe, effective exercise.",
     instagram: "https://instagram.com/aisha_senior_fitness",
+    role: "pt",
+    trainees: [],
     services: [
       {
         name: "Senior Fitness",
@@ -185,20 +216,28 @@ const kuwaitiTrainers = [
   },
 ];
 
-// Seeder function
+// Seeder function - Updated for User model
 export const seedTrainers = async () => {
   try {
-    // Clear existing trainers
-    await Trainer.deleteMany({});
-    console.log("Cleared existing trainers");
+    // Clear existing PT users
+    await User.deleteMany({ role: "pt" });
+    console.log("Cleared existing PT users");
 
-    // Insert new trainers
-    const insertedTrainers = await Trainer.insertMany(kuwaitiTrainers);
-    console.log(`Successfully seeded ${insertedTrainers.length} Kuwaiti trainers`);
+    // Hash passwords and create users
+    const hashedTrainers = await Promise.all(
+      kuwaitiTrainers.map(async (trainer) => ({
+        ...trainer,
+        password: await bcrypt.hash(trainer.password, 12),
+      }))
+    );
+
+    // Insert new PT users
+    const insertedTrainers = await User.insertMany(hashedTrainers);
+    console.log(`Successfully seeded ${insertedTrainers.length} Kuwaiti PT users`);
 
     // Log the seeded trainers
     insertedTrainers.forEach((trainer) => {
-      console.log(`- ${trainer.name}: ${trainer.services[0].name}`);
+      console.log(`- ${trainer.name}: ${trainer.services?.[0]?.name || 'Personal Trainer'}`);
     });
 
     return insertedTrainers;

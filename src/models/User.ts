@@ -1,5 +1,20 @@
 import mongoose, { Document, Schema } from "mongoose";
 
+// Define the interfaces directly in User model since Trainer model is deleted
+export interface IService {
+  name: string;
+  description: string;
+  price: string;
+  isPopular?: boolean;
+}
+
+export interface IStats {
+  clientsCoached: string;
+  yearsExperience: number;
+  rating: number;
+  certifications: number;
+}
+
 export interface IUser extends Document {
   email: string;
   password: string;
@@ -20,7 +35,13 @@ export interface IUser extends Document {
   profilePicture?: string;
   role: "trainee" | "pt"; // User role
   trainees?: mongoose.Types.ObjectId[]; // For PTs: array of supervised trainees
-  personalTrainer?: mongoose.Types.ObjectId; // For trainees: reference to their PT
+  personalTrainer?: mongoose.Types.ObjectId; // Primary PT (optional - for backward compatibility)
+  personalTrainers?: mongoose.Types.ObjectId[]; // Multiple PTs (new field)
+  // Trainer-specific fields (only for PTs)
+  bio?: string;
+  instagram?: string;
+  services?: IService[];
+  stats?: IStats;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -66,7 +87,30 @@ const UserSchema: Schema = new Schema(
     personalTrainer: {
       type: Schema.Types.ObjectId,
       ref: "User",
-    }, // Reference to PT (only for trainees)
+    }, // Primary PT (optional)
+    personalTrainers: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ], // Multiple PTs (optional)
+    // Trainer-specific fields (only for PTs)
+    bio: { type: String },
+    instagram: { type: String },
+    services: [
+      {
+        name: { type: String, required: true },
+        description: { type: String, required: true },
+        price: { type: String, required: true },
+        isPopular: { type: Boolean, default: false },
+      },
+    ],
+    stats: {
+      clientsCoached: { type: String, default: "0" },
+      yearsExperience: { type: Number, default: 0 },
+      rating: { type: Number, default: 4.5 },
+      certifications: { type: Number, default: 0 },
+    },
   },
   {
     timestamps: true,
