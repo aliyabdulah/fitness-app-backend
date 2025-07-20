@@ -15,6 +15,15 @@ export interface IStats {
   certifications: number;
 }
 
+export interface ITraineeRequest {
+  _id?: mongoose.Types.ObjectId; // Add this line
+  traineeId: mongoose.Types.ObjectId;
+  status: 'pending' | 'approved' | 'rejected';
+  serviceName: string;
+  requestDate: Date;
+  responseDate?: Date;
+}
+
 export interface IUser extends Document {
   email: string;
   password: string;
@@ -37,6 +46,7 @@ export interface IUser extends Document {
   trainees?: mongoose.Types.ObjectId[]; // For PTs: array of supervised trainees
   personalTrainer?: mongoose.Types.ObjectId; // Primary PT (optional - for backward compatibility)
   personalTrainers?: mongoose.Types.ObjectId[]; // Multiple PTs (new field)
+  traineeRequests?: ITraineeRequest[]; // Add this line
   // Trainer-specific fields (only for PTs)
   bio?: string;
   instagram?: string;
@@ -94,6 +104,19 @@ const UserSchema: Schema = new Schema(
         ref: "User",
       },
     ], // Multiple PTs (optional)
+    traineeRequests: [
+      {
+        traineeId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        status: { 
+          type: String, 
+          enum: ["pending", "approved", "rejected"], 
+          default: "pending" 
+        },
+        serviceName: { type: String, required: true },
+        requestDate: { type: Date, default: Date.now },
+        responseDate: { type: Date },
+      }
+    ],
     // Trainer-specific fields (only for PTs)
     bio: { type: String },
     instagram: { type: String },

@@ -11,83 +11,68 @@ interface MulterRequest extends Request {
 // POST /api/auth/register - Register new user
 export const register = async (req: MulterRequest, res: Response) => {
   try {
-    console.log("Request body:", req.body); // Debug log
-    console.log("Request file:", req.file); // Debug log
-
-    const {
-      email,
-      password,
-      firstName,
-      lastName,
-      age,
-      weight,
-      height,
-      fitnessLevel,
-      fitnessGoal,
-      workoutFrequency
-    } = req.body;
-
-    // Validate required fields
-    if (!email || !password || !firstName || !lastName) {
-      return res.status(400).json({ message: "Missing required fields: email, password, firstName, lastName" });
-    }
-
+    const { firstName, lastName, email, password, age, weight, height, fitnessLevel, fitnessGoal, workoutFrequency } = req.body;
+    
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists with this email" });
+      return res.status(400).json({ error: "User already exists" });
     }
 
     // Hash password
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Create new user
-    const newUser = await User.create({
-      email,
-      password: hashedPassword,
+    // Create new user with profile picture
+    const newUser = new User({
       firstName,
       lastName,
-      age: parseInt(age) || 25,
-      weight: parseInt(weight) || 70,
-      height: parseInt(height) || 170,
-      fitnessLevel: fitnessLevel || "beginner",
-      fitnessGoal: fitnessGoal || "stay_fit",
-      workoutFrequency: parseInt(workoutFrequency) || 3,
-      profilePicture: req.file ? req.file.path : undefined,
-      role: "trainee" // Add default role
+      email,
+      password: hashedPassword,
+      age: parseInt(age),
+      weight: parseFloat(weight),
+      height: parseInt(height),
+      fitnessLevel,
+      fitnessGoal,
+      workoutFrequency: parseInt(workoutFrequency),
+      role: "trainee", // Default role
+      profilePicture: req.file ? req.file.path : undefined, // Use the file path
     });
+
+    await newUser.save();
 
     // Generate JWT token
     const token = jwt.sign(
       { userId: newUser._id, email: newUser.email },
-      process.env.JWT_SECRET || "fallback_secret_key",
+      process.env.JWT_SECRET || "your-secret-key",
       { expiresIn: "24h" }
     );
 
-    // Send response
+    // Return user data without password
+    const userResponse = {
+      id: newUser._id,
+      firstName: newUser.firstName,
+      lastName: newUser.lastName,
+      email: newUser.email,
+      age: newUser.age,
+      weight: newUser.weight,
+      height: newUser.height,
+      fitnessLevel: newUser.fitnessLevel,
+      fitnessGoal: newUser.fitnessGoal,
+      workoutFrequency: newUser.workoutFrequency,
+      role: newUser.role,
+      profilePicture: newUser.profilePicture,
+    };
+
     res.status(201).json({
       message: "User registered successfully",
       token,
-      user: {
-        id: newUser._id,
-        email: newUser.email,
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
-        age: newUser.age,
-        weight: newUser.weight,
-        height: newUser.height,
-        fitnessLevel: newUser.fitnessLevel,
-        fitnessGoal: newUser.fitnessGoal,
-        workoutFrequency: newUser.workoutFrequency,
-        profilePicture: newUser.profilePicture,
-        role: newUser.role // Add role to response
-      }
+      user: userResponse
     });
 
   } catch (error) {
     console.error("Registration error:", error);
-    res.status(500).json({ message: "Failed to register user", error });
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 

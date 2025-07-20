@@ -511,6 +511,70 @@ export const getTraineeWorkouts = async (req: Request, res: Response) => {
   }
 };
 
+// Add this new function to fetch assigned workouts for trainees
+export const getAssignedWorkouts = async (req: Request, res: Response) => {
+  try {
+    const { traineeId } = req.params;
+    const { date } = req.query;
+
+    console.log('=== GET ASSIGNED WORKOUTS DEBUG ===');
+    console.log('Trainee ID:', traineeId);
+    console.log('Date filter:', date);
+
+    let query: any = { assignedTo: traineeId };
+
+    // Filter by date if provided
+    if (date) {
+      const startDate = new Date(date as string);
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 1);
+      query.assignedDate = { $gte: startDate, $lt: endDate };
+    }
+
+    // Get workout assignments and populate the workout template
+    const assignments = await WorkoutAssignment.find(query)
+      .populate('workout') // Use simple populate without specifying model
+      .populate('assignedBy', 'firstName lastName')
+      .sort({ assignedDate: 1 });
+
+    console.log('Found assignments:', assignments.length);
+    console.log('Sample assignment:', JSON.stringify(assignments[0], null, 2));
+
+    // Transform assignments into workout format
+    const workouts = assignments.map(assignment => {
+      // Check if workout is populated and has the expected structure
+      if (!assignment.workout || typeof assignment.workout === 'string') {
+        console.log('Workout not populated properly:', assignment.workout);
+        return null;
+      }
+
+      // Type assertion to help TypeScript understand the structure
+      const workoutTemplate = assignment.workout as any;
+
+      return {
+        _id: assignment._id,
+        name: workoutTemplate.title,
+        description: workoutTemplate.description,
+        duration: workoutTemplate.estimatedDuration,
+        difficulty: workoutTemplate.difficulty,
+        muscleGroups: ['Full Body'], // Default for now
+        exercises: workoutTemplate.exercises,
+        scheduledDate: assignment.assignedDate,
+        status: assignment.status,
+        trainerId: assignment.assignedBy,
+        isAssigned: true
+      };
+    }).filter(Boolean); // Remove null entries
+
+    console.log('Transformed workouts:', workouts.length);
+
+    res.status(200).json(workouts);
+  } catch (error) {
+    console.error('Error fetching assigned workouts:', error);
+    res.status(500).json({ message: "Error fetching assigned workouts" });
+  }
+};
+
 // ============= EXERCISE COMPLETION & PROGRESS TRACKING =============
 
 // Mark exercise as completed

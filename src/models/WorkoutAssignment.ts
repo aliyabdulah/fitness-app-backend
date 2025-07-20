@@ -40,7 +40,7 @@ const WorkoutAssignmentSchema: Schema = new Schema(
   {
     workout: {
       type: Schema.Types.ObjectId,
-      ref: "Workout",
+      ref: "WorkoutTemplate", // Change this from "Workout" to "WorkoutTemplate"
       required: true,
     },
     assignedTo: {

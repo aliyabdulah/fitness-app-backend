@@ -7,7 +7,8 @@ import {
   updateWorkoutStats,
   deleteWorkout,
   getExercises,
-  debugUserWorkouts
+  debugUserWorkouts,
+  getAssignedWorkouts
 } from "../controllers/WorkoutControllers";
 
 const router = Router();
@@ -20,6 +21,9 @@ router.get("/debug-user", debugUserWorkouts);
 
 // GET /api/workouts/user/:userId - Get workouts for a specific user
 router.get("/user/:userId", getUserWorkouts);
+
+// GET /api/workouts/assigned/:traineeId - Get assigned workouts for a specific trainee
+router.get("/assigned/:traineeId", getAssignedWorkouts);
 
 // GET /api/workouts/:workoutId - Get specific workout by ID
 router.get("/:workoutId", getWorkoutById);

@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
 import User from "../models/User";
+import WorkoutAssignment from "../models/WorkoutAssignment"; // Added import for WorkoutAssignment
+import Workout from "../models/Workout"; // Added import for Workout
+import WorkoutTemplate from "../models/WorkoutTemplate";
 
 // GET /api/trainers - List all trainers
 export const getAllTrainers = async (req: Request, res: Response) => {
@@ -531,43 +534,25 @@ export const submitTraineeRequest = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Personal Trainer not found" });
     }
 
-    // Check if trainee is already supervised by this PT
-    const isAlreadySupervised = pt.trainees?.some(id => id.toString() === traineeId);
-    console.log('Already supervised:', isAlreadySupervised);
-    
-    if (isAlreadySupervised) {
-      // If already supervised, just return success (they can apply for different services)
-      console.log('Returning success for already supervised trainee');
-      res.status(200).json({
-        message: "Training request submitted successfully",
-        trainee: {
-          id: trainee._id,
-          name: trainee.name,
-          email: trainee.email,
-        },
-        pt: {
-          id: pt._id,
-          name: pt.name,
-          email: pt.email,
-        },
-        serviceName,
-        requestMessage: message,
-        note: "You are already supervised by this trainer"
-      });
-      return;
-    }
-
-    // Add trainee to PT's trainees list (if not already there)
-    console.log('Adding trainee to PT trainees list');
+    // Add trainee request to PT's traineeRequests array
     await User.findByIdAndUpdate(
       ptId,
-      { $addToSet: { trainees: traineeId } },
+      { 
+        $push: { 
+          traineeRequests: {
+            traineeId,
+            status: 'pending',
+            serviceName,
+            requestDate: new Date()
+          }
+        }
+      },
       { new: true }
     );
 
     console.log('Training request successful');
     res.status(200).json({
-      message: "Training request submitted and accepted successfully",
+      message: "Training request submitted successfully",
       trainee: {
         id: trainee._id,
         name: trainee.name,
@@ -585,5 +570,251 @@ export const submitTraineeRequest = async (req: Request, res: Response) => {
     console.error('Error in submitTraineeRequest:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     res.status(500).json({ message: "Failed to submit training request", error: errorMessage });
+  }
+};
+
+export const getTraineesWithStatus = async (req: Request, res: Response) => {
+  try {
+    const { ptId } = req.params;
+
+    const pt = await User.findById(ptId)
+      .populate('traineeRequests.traineeId', { password: 0 });
+
+    if (!pt) {
+      return res.status(404).json({ message: "Personal Trainer not found" });
+    }
+
+    if (pt.role !== "pt") {
+      return res.status(403).json({ message: "User is not a Personal Trainer" });
+    }
+
+    // Group trainees by status
+    const traineesByStatus = {
+      pending: pt.traineeRequests?.filter(req => req.status === 'pending') || [],
+      approved: pt.traineeRequests?.filter(req => req.status === 'approved') || [],
+      rejected: pt.traineeRequests?.filter(req => req.status === 'rejected') || [],
+    };
+
+    res.status(200).json({
+      message: "Trainees with status retrieved successfully",
+      trainees: traineesByStatus,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to retrieve trainees with status", error });
+  }
+};
+
+// Add this temporary debug endpoint
+export const debugPTRequests = async (req: Request, res: Response) => {
+  try {
+    const { ptId } = req.params;
+    
+    const pt = await User.findById(ptId)
+      .populate('traineeRequests.traineeId', { password: 0 });
+    
+    if (!pt) {
+      return res.status(404).json({ message: "PT not found" });
+    }
+    
+    console.log('=== DEBUG PT REQUESTS ===');
+    console.log('PT ID:', ptId);
+    console.log('PT traineeRequests:', pt.traineeRequests);
+    console.log('PT trainees array:', pt.trainees);
+    
+    res.status(200).json({
+      message: "Debug info",
+      ptId,
+      traineeRequests: pt.traineeRequests || [],
+      trainees: pt.trainees || [],
+      totalRequests: pt.traineeRequests?.length || 0
+    });
+  } catch (error) {
+    console.error('Debug error:', error);
+    res.status(500).json({ message: "Debug failed", error });
+  }
+};
+
+export const approveTraineeRequest = async (req: Request, res: Response) => {
+  try {
+    const { ptId, requestId } = req.params;
+
+    const pt = await User.findById(ptId);
+    if (!pt) {
+      return res.status(404).json({ message: "Personal Trainer not found" });
+    }
+
+    if (pt.role !== "pt") {
+      return res.status(403).json({ message: "User is not a Personal Trainer" });
+    }
+
+    // Find the request by traineeId (since requestId is actually the traineeId)
+    const request = pt.traineeRequests?.find(req => 
+      req.traineeId.toString() === requestId && req.status === 'pending'
+    );
+
+    if (!request) {
+      return res.status(404).json({ message: "Pending request not found" });
+    }
+
+    // Update request status to approved using array index
+    const requestIndex = pt.traineeRequests!.findIndex(req => 
+      req.traineeId.toString() === requestId && req.status === 'pending'
+    );
+
+    await User.updateOne(
+      { _id: ptId },
+      { $set: { [`traineeRequests.${requestIndex}.status`]: "approved" } }
+    );
+
+    // Add trainee to PT's trainees list
+    await User.findByIdAndUpdate(
+      ptId,
+      { $addToSet: { trainees: request.traineeId } }
+    );
+
+    // Update trainee's personalTrainer field
+    await User.findByIdAndUpdate(
+      request.traineeId,
+      { personalTrainer: ptId }
+    );
+
+    res.status(200).json({
+      message: "Trainee request approved successfully",
+      requestId,
+      traineeId: request.traineeId
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to approve trainee request", error });
+  }
+};
+
+export const rejectTraineeRequest = async (req: Request, res: Response) => {
+  try {
+    const { ptId, requestId } = req.params;
+
+    const pt = await User.findById(ptId);
+    if (!pt) {
+      return res.status(404).json({ message: "Personal Trainer not found" });
+    }
+
+    if (pt.role !== "pt") {
+      return res.status(403).json({ message: "User is not a Personal Trainer" });
+    }
+
+    // Find the request by traineeId (since requestId is actually the traineeId)
+    const request = pt.traineeRequests?.find(req => 
+      req.traineeId.toString() === requestId && req.status === 'pending'
+    );
+
+    if (!request) {
+      return res.status(404).json({ message: "Pending request not found" });
+    }
+
+    // Update request status to rejected using array index
+    const requestIndex = pt.traineeRequests!.findIndex(req => 
+      req.traineeId.toString() === requestId && req.status === 'pending'
+    );
+
+    await User.updateOne(
+      { _id: ptId },
+      { $set: { [`traineeRequests.${requestIndex}.status`]: "rejected" } }
+    );
+
+    res.status(200).json({
+      message: "Trainee request rejected successfully",
+      requestId
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to reject trainee request", error });
+  }
+};
+
+export const assignWorkoutToTrainee = async (req: Request, res: Response) => {
+  try {
+    const { traineeId, workoutPlanId, assignedDate, ptId } = req.body;
+
+    console.log('=== ASSIGN WORKOUT DEBUG ===');
+    console.log('Request body:', req.body);
+    console.log('traineeId:', traineeId);
+    console.log('workoutPlanId:', workoutPlanId);
+    console.log('assignedDate:', assignedDate);
+    console.log('ptId:', ptId);
+
+    // Validate required fields
+    if (!traineeId || !workoutPlanId || !assignedDate || !ptId) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // Verify PT exists and is authorized
+    const pt = await User.findById(ptId);
+    if (!pt || pt.role !== "pt") {
+      return res.status(404).json({ message: "Personal Trainer not found" });
+    }
+
+    // Verify trainee exists
+    const trainee = await User.findById(traineeId);
+    if (!trainee) {
+      return res.status(404).json({ message: "Trainee not found" });
+    }
+
+    // Verify workout template exists - Use WorkoutTemplate model instead of Workout
+    const workoutTemplate = await WorkoutTemplate.findById(workoutPlanId);
+    if (!workoutTemplate) {
+      return res.status(404).json({ message: "Workout template not found" });
+    }
+
+    // Create workout assignment using correct field names from the model
+    const workoutAssignment = new WorkoutAssignment({
+      workout: workoutPlanId, // Use the actual workout template ID
+      assignedTo: traineeId,   // Trainee this workout is assigned to
+      assignedBy: ptId,        // PT who assigned it
+      assignedDate: new Date(assignedDate),
+      status: 'assigned'
+    });
+
+    await workoutAssignment.save();
+
+    console.log('Workout assignment created:', workoutAssignment);
+
+    res.status(200).json({
+      message: "Workout assigned successfully",
+      assignment: workoutAssignment
+    });
+  } catch (error) {
+    console.error('Error in assignWorkoutToTrainee:', error);
+    res.status(500).json({ message: "Failed to assign workout", error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};
+
+export const getWorkoutTemplates = async (req: Request, res: Response) => {
+  try {
+    const { ptId } = req.params;
+
+    console.log('=== GET WORKOUT TEMPLATES DEBUG ===');
+    console.log('PT ID:', ptId);
+
+    // Verify PT exists
+    const pt = await User.findById(ptId);
+    if (!pt || pt.role !== "pt") {
+      console.log('PT not found or not a PT');
+      return res.status(404).json({ message: "Personal Trainer not found" });
+    }
+
+    console.log('PT found:', pt.firstName, pt.lastName);
+
+    // Use the imported WorkoutTemplate model (not require)
+    const workoutTemplates = await WorkoutTemplate.find({ createdBy: ptId })
+      .select('title description difficulty estimatedDuration exercises');
+
+    console.log('Found workout templates:', workoutTemplates.length);
+    console.log('Templates:', workoutTemplates);
+
+    res.status(200).json({
+      message: "Workout templates retrieved successfully",
+      templates: workoutTemplates
+    });
+  } catch (error) {
+    console.error('Error in getWorkoutTemplates:', error);
+    res.status(500).json({ message: "Failed to retrieve workout templates", error: error instanceof Error ? error.message : 'Unknown error' });
   }
 };

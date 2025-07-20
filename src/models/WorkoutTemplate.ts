@@ -58,4 +58,4 @@ WorkoutSchema.pre("save", function (this: IWorkout, next) {
   next();
 });
 
-export default mongoose.model<IWorkout>("Workout", WorkoutSchema);
+export default mongoose.model<IWorkout>("WorkoutTemplate", WorkoutSchema);

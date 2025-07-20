@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Workout from "../models/Workout";
 import Exercise from "../models/Exercise";
 import User from "../models/User";
+import WorkoutTemplate from "../models/WorkoutTemplate";
 
 // Sample workout templates for different goals
 const workoutTemplates = [
@@ -146,6 +147,54 @@ export const seedWorkoutTemplates = async () => {
     return createdTemplates;
   } catch (error) {
     console.error("Error seeding workout templates:", error);
+    throw error;
+  }
+};
+
+// Seeder function to create workout templates for a specific PT
+export const seedWorkoutTemplatesForPT = async (ptId: string) => {
+  try {
+    // Verify the PT exists
+    const pt = await User.findById(ptId);
+    if (!pt || pt.role !== "pt") {
+      console.log(`PT user with ID ${ptId} not found or is not a PT`);
+      return [];
+    }
+
+    console.log(`Creating workout templates for PT: ${pt.firstName} ${pt.lastName} (${pt.email})`);
+
+    // Clear existing workout templates for this PT
+    await WorkoutTemplate.deleteMany({ createdBy: ptId });
+    console.log("Cleared existing workout templates for this PT");
+
+    const createdTemplates = [];
+
+    for (const template of workoutTemplates) {
+      // Create simple exercise objects that match the WorkoutTemplate model
+      const exercises = template.exercises.map(exercise => ({
+        name: exercise.name,
+        sets: exercise.sets,
+        reps: exercise.reps || "10-12"
+      }));
+
+      const workoutTemplate = new WorkoutTemplate({
+        title: template.name, // Use 'title' to match the WorkoutTemplate model
+        description: template.description,
+        estimatedDuration: template.duration,
+        difficulty: template.difficulty,
+        exercises: exercises,
+        createdBy: ptId // Use the specific PT ID
+      });
+
+      const savedTemplate = await workoutTemplate.save();
+      createdTemplates.push(savedTemplate);
+      console.log(`Created template: ${template.name} with ${exercises.length} exercises`);
+    }
+
+    console.log(`Successfully created ${createdTemplates.length} workout templates for PT ${pt.firstName}`);
+    return createdTemplates;
+  } catch (error) {
+    console.error("Error seeding workout templates for PT:", error);
     throw error;
   }
 };
