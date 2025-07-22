@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { 
+import {
   createWorkout,
   getUserWorkouts,
   getWorkoutById,
@@ -8,7 +8,8 @@ import {
   deleteWorkout,
   getExercises,
   debugUserWorkouts,
-  getAssignedWorkouts
+  getAssignedWorkouts,
+  updateAssignedWorkoutExercise,
 } from "../controllers/WorkoutControllers";
 
 const router = Router();
@@ -31,6 +32,12 @@ router.get("/:workoutId", getWorkoutById);
 // POST /api/workouts - Create new workout
 router.post("/", createWorkout);
 
+// PATCH /api/workouts/assignment/:assignmentId/exercise - Update exercise in assigned workout
+router.patch(
+  "/assignment/:assignmentId/exercise",
+  updateAssignedWorkoutExercise
+);
+
 // PATCH /api/workouts/:workoutId/exercise - Update exercise state in workout
 router.patch("/:workoutId/exercise", updateWorkoutExercise);
 
@@ -40,4 +47,4 @@ router.patch("/:workoutId/stats", updateWorkoutStats);
 // DELETE /api/workouts/:workoutId - Delete workout
 router.delete("/:workoutId", deleteWorkout);
 
-export default router; 
+export default router;

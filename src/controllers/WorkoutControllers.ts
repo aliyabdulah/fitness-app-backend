@@ -4,14 +4,28 @@ import Exercise from "../models/Exercise";
 import WorkoutAssignment from "../models/WorkoutAssignment";
 import User from "../models/User";
 import mongoose from "mongoose";
-import { seedAllWorkouts, seedWorkoutTemplates, seedUserWorkouts } from "../seeders/workoutSeeder";
+import {
+  seedAllWorkouts,
+  seedWorkoutTemplates,
+  seedUserWorkouts,
+} from "../seeders/workoutSeeder";
 
 // ============= SIMPLE WORKOUT MANAGEMENT (Direct User Workouts) =============
 
 // Create a new workout (direct user creation)
 export const createWorkout = async (req: Request, res: Response) => {
   try {
-    const { userId, name, description, duration, difficulty, muscleGroups, exercises, scheduledDate, trainerId } = req.body;
+    const {
+      userId,
+      name,
+      description,
+      duration,
+      difficulty,
+      muscleGroups,
+      exercises,
+      scheduledDate,
+      trainerId,
+    } = req.body;
 
     const workout = new Workout({
       userId,
@@ -39,8 +53,8 @@ export const getUserWorkouts = async (req: Request, res: Response) => {
     const { userId } = req.params;
     const { date, status } = req.query;
 
-    console.log('🔍 Backend received date:', date); // Add this line
-    console.log('🔍 Backend received userId:', userId); // Add this line
+    console.log("🔍 Backend received date:", date); // Add this line
+    console.log("🔍 Backend received userId:", userId); // Add this line
 
     let query: any = { userId };
 
@@ -50,8 +64,8 @@ export const getUserWorkouts = async (req: Request, res: Response) => {
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + 1);
       query.scheduledDate = { $gte: startDate, $lt: endDate };
-      
-      console.log('🔍 Date filter:', { startDate, endDate }); // Add this line
+
+      console.log("🔍 Date filter:", { startDate, endDate }); // Add this line
     }
 
     // Filter by status if provided
@@ -63,7 +77,7 @@ export const getUserWorkouts = async (req: Request, res: Response) => {
       .populate("exercises.exerciseId")
       .sort({ scheduledDate: 1 });
 
-    console.log('📊 Backend found workouts:', workouts.length); // Add this line
+    console.log("📊 Backend found workouts:", workouts.length); // Add this line
 
     res.status(200).json(workouts);
   } catch (error) {
@@ -121,7 +135,9 @@ export const updateWorkoutExercise = async (req: Request, res: Response) => {
     }
 
     // Update workout status based on exercise states
-    const completedExercises = workout.exercises.filter(ex => ex.state === "completed").length;
+    const completedExercises = workout.exercises.filter(
+      (ex) => ex.state === "completed"
+    ).length;
     const totalExercises = workout.exercises.length;
 
     if (completedExercises === totalExercises) {
@@ -220,7 +236,8 @@ export const getExercises = async (req: Request, res: Response) => {
 export const createWorkoutTemplate = async (req: Request, res: Response) => {
   try {
     const { ptId } = req.params;
-    const { name, exercises, description, difficulty, duration, muscleGroups } = req.body;
+    const { name, exercises, description, difficulty, duration, muscleGroups } =
+      req.body;
 
     // Validate PT exists and is a PT
     const pt = await User.findById(ptId);
@@ -228,11 +245,18 @@ export const createWorkoutTemplate = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Personal Trainer not found" });
     }
     if (pt.role !== "pt") {
-      return res.status(403).json({ message: "User is not a Personal Trainer" });
+      return res
+        .status(403)
+        .json({ message: "User is not a Personal Trainer" });
     }
 
     // Validate required fields
-    if (!name || !exercises || !Array.isArray(exercises) || exercises.length === 0) {
+    if (
+      !name ||
+      !exercises ||
+      !Array.isArray(exercises) ||
+      exercises.length === 0
+    ) {
       return res.status(400).json({
         message: "Name and at least one exercise are required",
       });
@@ -263,7 +287,7 @@ export const createWorkoutTemplate = async (req: Request, res: Response) => {
       duration: duration || 45,
       muscleGroups: muscleGroups || [],
       scheduledDate: new Date(), // Default to today for templates
-      status: "scheduled"
+      status: "scheduled",
     });
 
     const savedWorkout = await newWorkout.save();
@@ -289,7 +313,9 @@ export const getPTWorkouts = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Personal Trainer not found" });
     }
     if (pt.role !== "pt") {
-      return res.status(403).json({ message: "User is not a Personal Trainer" });
+      return res
+        .status(403)
+        .json({ message: "User is not a Personal Trainer" });
     }
 
     const workouts = await Workout.find({ createdBy: ptId })
@@ -310,7 +336,8 @@ export const getPTWorkouts = async (req: Request, res: Response) => {
 export const updateWorkoutTemplate = async (req: Request, res: Response) => {
   try {
     const { ptId, workoutId } = req.params;
-    const { name, exercises, description, difficulty, duration, muscleGroups } = req.body;
+    const { name, exercises, description, difficulty, duration, muscleGroups } =
+      req.body;
 
     // Validate PT exists
     const pt = await User.findById(ptId);
@@ -318,7 +345,9 @@ export const updateWorkoutTemplate = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Personal Trainer not found" });
     }
     if (pt.role !== "pt") {
-      return res.status(403).json({ message: "User is not a Personal Trainer" });
+      return res
+        .status(403)
+        .json({ message: "User is not a Personal Trainer" });
     }
 
     // Find workout and verify ownership
@@ -327,7 +356,9 @@ export const updateWorkoutTemplate = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Workout not found" });
     }
     if (workout.createdBy?.toString() !== ptId) {
-      return res.status(403).json({ message: "You can only edit your own workouts" });
+      return res
+        .status(403)
+        .json({ message: "You can only edit your own workouts" });
     }
 
     // Validate exercises if provided
@@ -374,7 +405,9 @@ export const deleteWorkoutTemplate = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Personal Trainer not found" });
     }
     if (pt.role !== "pt") {
-      return res.status(403).json({ message: "User is not a Personal Trainer" });
+      return res
+        .status(403)
+        .json({ message: "User is not a Personal Trainer" });
     }
 
     // Find workout and verify ownership
@@ -383,7 +416,9 @@ export const deleteWorkoutTemplate = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Workout not found" });
     }
     if (workout.createdBy?.toString() !== ptId) {
-      return res.status(403).json({ message: "You can only delete your own workouts" });
+      return res
+        .status(403)
+        .json({ message: "You can only delete your own workouts" });
     }
 
     // Delete workout and all associated assignments
@@ -412,7 +447,9 @@ export const assignWorkoutToTrainee = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Personal Trainer not found" });
     }
     if (pt.role !== "pt") {
-      return res.status(403).json({ message: "User is not a Personal Trainer" });
+      return res
+        .status(403)
+        .json({ message: "User is not a Personal Trainer" });
     }
 
     // Validate trainee exists and is supervised by this PT
@@ -424,7 +461,9 @@ export const assignWorkoutToTrainee = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "User is not a trainee" });
     }
     if (!pt.trainees?.some((t) => t.toString() === traineeId)) {
-      return res.status(403).json({ message: "Trainee is not supervised by this PT" });
+      return res
+        .status(403)
+        .json({ message: "Trainee is not supervised by this PT" });
     }
 
     // Validate workout exists and is owned by PT
@@ -433,7 +472,9 @@ export const assignWorkoutToTrainee = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Workout not found" });
     }
     if (workout.createdBy?.toString() !== ptId) {
-      return res.status(403).json({ message: "You can only assign your own workouts" });
+      return res
+        .status(403)
+        .json({ message: "You can only assign your own workouts" });
     }
 
     // Create progress array for all exercises
@@ -487,7 +528,12 @@ export const getTraineeWorkouts = async (req: Request, res: Response) => {
 
     // Build query
     const query: any = { assignedTo: traineeId };
-    if (status && ["assigned", "in_progress", "completed", "skipped"].includes(status as string)) {
+    if (
+      status &&
+      ["assigned", "in_progress", "completed", "skipped"].includes(
+        status as string
+      )
+    ) {
       query.status = status;
     }
 
@@ -507,7 +553,9 @@ export const getTraineeWorkouts = async (req: Request, res: Response) => {
       assignments,
     });
   } catch (error) {
-    res.status(500).json({ message: "Failed to retrieve assigned workouts", error });
+    res
+      .status(500)
+      .json({ message: "Failed to retrieve assigned workouts", error });
   }
 };
 
@@ -517,9 +565,9 @@ export const getAssignedWorkouts = async (req: Request, res: Response) => {
     const { traineeId } = req.params;
     const { date } = req.query;
 
-    console.log('=== GET ASSIGNED WORKOUTS DEBUG ===');
-    console.log('Trainee ID:', traineeId);
-    console.log('Date filter:', date);
+    console.log("=== GET ASSIGNED WORKOUTS DEBUG ===");
+    console.log("Trainee ID:", traineeId);
+    console.log("Date filter:", date);
 
     let query: any = { assignedTo: traineeId };
 
@@ -533,44 +581,47 @@ export const getAssignedWorkouts = async (req: Request, res: Response) => {
 
     // Get workout assignments and populate the workout template
     const assignments = await WorkoutAssignment.find(query)
-      .populate('workout') // Use simple populate without specifying model
-      .populate('assignedBy', 'firstName lastName')
+      .populate("workout") // Use simple populate without specifying model
+      .populate("assignedBy", "firstName lastName")
       .sort({ assignedDate: 1 });
 
-    console.log('Found assignments:', assignments.length);
-    console.log('Sample assignment:', JSON.stringify(assignments[0], null, 2));
+    console.log("Found assignments:", assignments.length);
+    console.log("Sample assignment:", JSON.stringify(assignments[0], null, 2));
 
     // Transform assignments into workout format
-    const workouts = assignments.map(assignment => {
-      // Check if workout is populated and has the expected structure
-      if (!assignment.workout || typeof assignment.workout === 'string') {
-        console.log('Workout not populated properly:', assignment.workout);
-        return null;
-      }
+    const workouts = assignments
+      .map((assignment) => {
+        // Check if workout is populated and has the expected structure
+        if (!assignment.workout || typeof assignment.workout === "string") {
+          console.log("Workout not populated properly:", assignment.workout);
+          return null;
+        }
 
-      // Type assertion to help TypeScript understand the structure
-      const workoutTemplate = assignment.workout as any;
+        // Type assertion to help TypeScript understand the structure
+        const workoutTemplate = assignment.workout as any;
 
-      return {
-        _id: assignment._id,
-        name: workoutTemplate.title,
-        description: workoutTemplate.description,
-        duration: workoutTemplate.estimatedDuration,
-        difficulty: workoutTemplate.difficulty,
-        muscleGroups: ['Full Body'], // Default for now
-        exercises: workoutTemplate.exercises,
-        scheduledDate: assignment.assignedDate,
-        status: assignment.status,
-        trainerId: assignment.assignedBy,
-        isAssigned: true
-      };
-    }).filter(Boolean); // Remove null entries
+        return {
+          _id: assignment._id,
+          name: workoutTemplate.title,
+          description: workoutTemplate.description,
+          duration: workoutTemplate.estimatedDuration,
+          difficulty: workoutTemplate.difficulty,
+          muscleGroups: ["Full Body"], // Default for now
+          exercises: workoutTemplate.exercises,
+          scheduledDate: assignment.assignedDate,
+          status: assignment.status,
+          trainerId: assignment.assignedBy,
+          isAssigned: true,
+          progress: assignment.progress, // Add the progress array
+        };
+      })
+      .filter(Boolean); // Remove null entries
 
-    console.log('Transformed workouts:', workouts.length);
+    console.log("Transformed workouts:", workouts.length);
 
     res.status(200).json(workouts);
   } catch (error) {
-    console.error('Error fetching assigned workouts:', error);
+    console.error("Error fetching assigned workouts:", error);
     res.status(500).json({ message: "Error fetching assigned workouts" });
   }
 };
@@ -598,12 +649,18 @@ export const markExerciseCompleted = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Workout assignment not found" });
     }
     if (assignment.assignedTo.toString() !== traineeId) {
-      return res.status(403).json({ message: "This workout is not assigned to you" });
+      return res
+        .status(403)
+        .json({ message: "This workout is not assigned to you" });
     }
 
     // Validate exercise index
     const exIndex = parseInt(exerciseIndex);
-    if (isNaN(exIndex) || exIndex < 0 || exIndex >= assignment.progress.length) {
+    if (
+      isNaN(exIndex) ||
+      exIndex < 0 ||
+      exIndex >= assignment.progress.length
+    ) {
       return res.status(400).json({ message: "Invalid exercise index" });
     }
 
@@ -634,7 +691,9 @@ export const markExerciseCompleted = async (req: Request, res: Response) => {
       assignment,
     });
   } catch (error) {
-    res.status(500).json({ message: "Failed to update exercise progress", error });
+    res
+      .status(500)
+      .json({ message: "Failed to update exercise progress", error });
   }
 };
 
@@ -659,11 +718,16 @@ export const updateWorkoutAssignment = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Workout assignment not found" });
     }
     if (assignment.assignedTo.toString() !== traineeId) {
-      return res.status(403).json({ message: "This workout is not assigned to you" });
+      return res
+        .status(403)
+        .json({ message: "This workout is not assigned to you" });
     }
 
     // Update allowed fields
-    if (status && ["assigned", "in_progress", "completed", "skipped"].includes(status)) {
+    if (
+      status &&
+      ["assigned", "in_progress", "completed", "skipped"].includes(status)
+    ) {
       assignment.status = status;
       if (status === "completed" && !assignment.completedAt) {
         assignment.completedAt = new Date();
@@ -684,9 +748,13 @@ export const updateWorkoutAssignment = async (req: Request, res: Response) => {
     ]);
 
     // Calculate completion percentage
-    const completedExercises = assignment.progress.filter((p) => p.completed).length;
+    const completedExercises = assignment.progress.filter(
+      (p) => p.completed
+    ).length;
     const totalExercises = assignment.progress.length;
-    const completionPercentage = Math.round((completedExercises / totalExercises) * 100);
+    const completionPercentage = Math.round(
+      (completedExercises / totalExercises) * 100
+    );
 
     res.status(200).json({
       message: "Workout assignment updated successfully",
@@ -698,12 +766,17 @@ export const updateWorkoutAssignment = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: "Failed to update workout assignment", error });
+    res
+      .status(500)
+      .json({ message: "Failed to update workout assignment", error });
   }
 };
 
 // Get workout assignment details
-export const getWorkoutAssignmentDetails = async (req: Request, res: Response) => {
+export const getWorkoutAssignmentDetails = async (
+  req: Request,
+  res: Response
+) => {
   try {
     const { assignmentId } = req.params;
 
@@ -725,87 +798,100 @@ export const getWorkoutAssignmentDetails = async (req: Request, res: Response) =
       assignment,
     });
   } catch (error) {
-    res.status(500).json({ message: "Failed to retrieve workout assignment", error });
+    res
+      .status(500)
+      .json({ message: "Failed to retrieve workout assignment", error });
   }
 };
 
 // POST /api/workouts/seed-templates - Seed workout templates
-export const seedWorkoutTemplatesController = async (req: Request, res: Response) => {
+export const seedWorkoutTemplatesController = async (
+  req: Request,
+  res: Response
+) => {
   try {
     const templates = await seedWorkoutTemplates();
-    
+
     res.status(201).json({
       message: "Workout templates seeded successfully",
       count: templates.length,
-      templates: templates.map(template => ({
+      templates: templates.map((template) => ({
         id: template._id,
         name: template.name,
-        exercises: template.exercises.length
-      }))
+        exercises: template.exercises.length,
+      })),
     });
   } catch (error) {
     console.error("Error seeding workout templates:", error);
-    res.status(500).json({ 
-      message: "Failed to seed workout templates", 
-      error: error instanceof Error ? error.message : "Unknown error" 
+    res.status(500).json({
+      message: "Failed to seed workout templates",
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 };
 
 // POST /api/workouts/seed-user-workouts - Seed user workouts
-export const seedUserWorkoutsController = async (req: Request, res: Response) => {
+export const seedUserWorkoutsController = async (
+  req: Request,
+  res: Response
+) => {
   try {
     const workouts = await seedUserWorkouts();
-    
+
     res.status(201).json({
       message: "User workouts seeded successfully",
       count: workouts.length,
-      workouts: workouts.map(workout => ({
+      workouts: workouts.map((workout) => ({
         id: workout._id,
         name: workout.name,
         userId: workout.userId,
-        exercises: workout.exercises.length
-      }))
+        exercises: workout.exercises.length,
+      })),
     });
   } catch (error) {
     console.error("Error seeding user workouts:", error);
-    res.status(500).json({ 
-      message: "Failed to seed user workouts", 
-      error: error instanceof Error ? error.message : "Unknown error" 
+    res.status(500).json({
+      message: "Failed to seed user workouts",
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 };
 
 // POST /api/workouts/seed-all - Seed all workout data
-export const seedAllWorkoutsController = async (req: Request, res: Response) => {
+export const seedAllWorkoutsController = async (
+  req: Request,
+  res: Response
+) => {
   try {
     await seedAllWorkouts();
-    
+
     res.status(201).json({
-      message: "All workout data seeded successfully"
+      message: "All workout data seeded successfully",
     });
   } catch (error) {
     console.error("Error seeding all workout data:", error);
-    res.status(500).json({ 
-      message: "Failed to seed workout data", 
-      error: error instanceof Error ? error.message : "Unknown error" 
+    res.status(500).json({
+      message: "Failed to seed workout data",
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
-}; 
+};
 
 // GET /api/workouts/debug-user - Debug endpoint to check user workouts
 export const debugUserWorkouts = async (req: Request, res: Response) => {
   try {
     const { userId } = req.query;
-    
+
     if (!userId) {
-      return res.status(400).json({ message: "userId query parameter required" });
+      return res
+        .status(400)
+        .json({ message: "userId query parameter required" });
     }
 
     console.log(`Debug: Looking for workouts for user: ${userId}`);
 
     const workouts = await Workout.find({ userId })
-      .populate('exercises.exerciseId')
+      .populate("exercises.exerciseId")
       .sort({ scheduledDate: 1 });
 
     console.log(`Debug: Found ${workouts.length} workouts`);
@@ -814,25 +900,127 @@ export const debugUserWorkouts = async (req: Request, res: Response) => {
       message: "User workouts retrieved",
       count: workouts.length,
       userId: userId,
-      workouts: workouts.map(w => ({
+      workouts: workouts.map((w) => ({
         id: w._id,
         name: w.name,
         scheduledDate: w.scheduledDate,
         status: w.status,
-        exercises: w.exercises.map(e => ({
+        exercises: w.exercises.map((e) => ({
           id: e.exerciseId._id,
           name: e.name,
           sets: e.sets,
           reps: e.reps,
-          state: e.state
-        }))
-      }))
+          state: e.state,
+        })),
+      })),
     });
   } catch (error) {
     console.error("Error debugging user workouts:", error);
-    res.status(500).json({ 
-      message: "Failed to retrieve user workouts", 
-      error: error instanceof Error ? error.message : "Unknown error" 
+    res.status(500).json({
+      message: "Failed to retrieve user workouts",
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
-}; 
+};
+
+// PATCH /api/workouts/assignment/:assignmentId/exercise - Update exercise in assigned workout
+export const updateAssignedWorkoutExercise = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { assignmentId } = req.params;
+    const { exerciseIndex, completed, actualSets, actualReps, notes } =
+      req.body;
+
+    console.log("=== UPDATE ASSIGNED WORKOUT EXERCISE DEBUG ===");
+    console.log("Assignment ID:", assignmentId);
+    console.log("Exercise Index:", exerciseIndex);
+    console.log("Request body:", req.body);
+
+    const assignment = await WorkoutAssignment.findById(assignmentId);
+    if (!assignment) {
+      console.log("Assignment not found:", assignmentId);
+      return res.status(404).json({ message: "Workout assignment not found" });
+    }
+
+    console.log("Found assignment:", assignment._id);
+    console.log("Current progress:", assignment.progress);
+
+    // If progress array is empty or doesn't exist, initialize it
+    if (!assignment.progress || assignment.progress.length === 0) {
+      console.log("Progress array is empty, initializing...");
+      await assignment.populate("workout");
+      const workout = assignment.workout as any;
+      if (workout && workout.exercises) {
+        assignment.progress = workout.exercises.map(
+          (_: any, index: number) => ({
+            exerciseIndex: index,
+            completed: false,
+          })
+        );
+        console.log(
+          "Initialized progress array with",
+          assignment.progress.length,
+          "exercises"
+        );
+      } else {
+        console.log("No exercises found in workout template");
+        return res
+          .status(400)
+          .json({ message: "No exercises found in workout" });
+      }
+    }
+
+    // Validate exercise index
+    if (exerciseIndex < 0 || exerciseIndex >= assignment.progress.length) {
+      console.log(
+        "Invalid exercise index:",
+        exerciseIndex,
+        "Progress length:",
+        assignment.progress.length
+      );
+      return res.status(400).json({
+        message: "Invalid exercise index",
+        exerciseIndex,
+        progressLength: assignment.progress.length,
+      });
+    }
+
+    // Update the exercise progress
+    const exerciseProgress = assignment.progress[exerciseIndex];
+    if (completed !== undefined) {
+      exerciseProgress.completed = completed;
+    }
+    if (actualSets !== undefined) {
+      exerciseProgress.actualSets = actualSets;
+    }
+    if (actualReps !== undefined) {
+      exerciseProgress.actualReps = actualReps;
+    }
+    if (notes !== undefined) {
+      exerciseProgress.notes = notes;
+    }
+
+    console.log("Updated exercise progress:", exerciseProgress);
+
+    // Save the assignment
+    await assignment.save();
+
+    console.log("Assignment saved successfully");
+
+    res.status(200).json({
+      message: "Exercise updated successfully",
+      assignment: {
+        id: assignment._id,
+        progress: assignment.progress,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating assigned workout exercise:", error);
+    res.status(500).json({
+      message: "Error updating exercise",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
